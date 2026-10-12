@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF Compressor | Tools By JRN</title>
+<meta name="description" content="Compress PDF files right in your browser, or shrink them under a size limit. Nothing is uploaded.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --accent: #FA8112;
+    --accent-dark: #d96d08;
+    --bg: #FAF3E1;
+    --card: #ffffff;
+    --text: #2b2118;
+    --muted: #7a6a58;
+    --border: #eadfc6;
+    --ok: #2e8b57;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .back { display: inline-block; color: var(--muted); text-decoration: none; font-size: 14px; margin-bottom: 16px; }
+  .back:hover { color: var(--accent-dark); }
+  h1 { font-size: 28px; margin-bottom: 6px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); margin-bottom: 24px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+  .drop {
+    border: 2px dashed var(--accent);
+    border-radius: 16px;
+    padding: 36px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .drop:hover, .drop.over { background: #fff4e3; }
+  .drop strong { display: block; font-size: 17px; margin-bottom: 4px; }
+  .drop small { color: var(--muted); }
+  .file-info { display: none; align-items: center; justify-content: space-between; gap: 12px; }
+  .file-info .name { font-weight: 600; word-break: break-all; }
+  .file-info .meta { color: var(--muted); font-size: 14px; }
+  .link-btn { background: none; border: none; color: var(--accent-dark); cursor: pointer; font-size: 14px; }
+  h2 { font-size: 16px; margin-bottom: 12px; }
+  .levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; transition: opacity .15s; }
+  .levels.off { opacity: .4; pointer-events: none; }
+  .level input { display: none; }
+  .level label {
+    display: block; border: 2px solid var(--border); border-radius: 12px;
+    padding: 12px 8px; text-align: center; cursor: pointer; transition: all .15s;
+  }
+  .level label b { display: block; margin-bottom: 2px; }
+  .level label small { color: var(--muted); font-size: 12px; }
+  .level input:checked + label { border-color: var(--accent); background: #fff4e3; }
+  .level .est { display: block; font-style: normal; font-size: 12px; font-weight: 600; color: var(--accent-dark); margin-top: 6px; }
+
+  .limit-toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; }
+  .limit-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .limit-hint { font-size: 13px; color: var(--muted); margin: 4px 0 0 28px; }
+  .limit-box { display: none; margin-top: 14px; }
+  .limit-row { display: flex; gap: 8px; }
+  .limit-row input, .limit-row select {
+    padding: 11px 12px; border: 2px solid var(--border); border-radius: 10px;
+    font-size: 16px; background: #fff; color: var(--text); font-family: inherit;
+  }
+  .limit-row input { flex: 1; min-width: 0; }
+  .limit-row input:focus, .limit-row select:focus { outline: none; border-color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip {
+    border: 1.5px solid var(--border); background: #fff; border-radius: 99px;
+    padding: 6px 14px; font-size: 13px; cursor: pointer; color: var(--text); font-family: inherit;
+  }
+  .chip:hover { border-color: var(--accent); color: var(--accent-dark); }
+
+  .preview { display: none; text-align: center; }
+  .preview h2 { margin-bottom: 4px; }
+  .btn {
+    width: 100%; padding: 14px; border: none; border-radius: 12px;
+    background: var(--accent); color: #fff; font-size: 16px; font-weight: 700;
+    cursor: pointer; transition: background .15s;
+  }
+  .btn:hover:not(:disabled) { background: var(--accent-dark); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .progress { display: none; margin-top: 14px; }
+  .bar { height: 10px; background: var(--border); border-radius: 99px; overflow: hidden; }
+  .bar div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .progress p { font-size: 13px; color: var(--muted); margin-top: 6px; text-align: center; }
+  .result { display: none; text-align: center; }
+  .stats { display: flex; justify-content: center; align-items: center; gap: 18px; margin: 8px 0 16px; flex-wrap: wrap; }
+  .stats div { font-size: 13px; color: var(--muted); }
+  .stats b { display: block; font-size: 20px; color: var(--text); }
+  .saved { font-size: 15px; font-weight: 700; color: var(--ok); margin-bottom: 14px; }
+  .saved.warn { color: var(--accent-dark); }
+  .note { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .error { display: none; color: #b3261e; font-size: 14px; margin-top: 10px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="https://toolbyjrn.vercel.app">&larr; Tools By JRN</a>
+  <h1>PDF <span>Compressor</span></h1>
+  <p class="sub">Shrink your PDF in seconds, or make it fit an upload size limit. Everything happens in your browser, so your file is never uploaded.</p>
+
+  <div class="card">
+    <div class="drop" id="drop">
+      <strong>Click or drop a PDF here</strong>
+      <small>PDF files up to 50 MB</small>
+      <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
+    </div>
+    <div class="file-info" id="fileInfo">
+      <div>
+        <div class="name" id="fileName"></div>
+        <div class="meta" id="fileSize"></div>
+      </div>
+      <button class="link-btn" id="changeBtn">Change</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <label class="limit-toggle">
+      <input type="checkbox" id="useTarget">
+      <span>I need the file under a specific size</span>
+    </label>
+    <p class="limit-hint">Useful when a website says "max 2 MB". We pick the best quality that fits.</p>
+    <div class="limit-box" id="limitBox">
+      <div class="limit-row">
+        <input type="number" id="targetVal" min="1" step="any" value="2" inputmode="decimal" placeholder="Size">
+        <select id="targetUnit">
+          <option value="MB" selected>MB</option>
+          <option value="KB">KB</option>
+        </select>
+      </div>
+      <div class="chips">
+        <button type="button" class="chip" data-v="500" data-u="KB">500 KB</button>
+        <button type="button" class="chip" data-v="1" data-u="MB">1 MB</button>
+        <button type="button" class="chip" data-v="2" data-u="MB">2 MB</button>
+        <button type="button" class="chip" data-v="5" data-u="MB">5 MB</button>
+        <button type="button" class="chip" data-v="10" data-u="MB">10 MB</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="levelCard">
+    <h2>Compression level</h2>
+    <div class="levels" id="levels">
+      <div class="level">
+        <input type="radio" name="level" id="l-low" value="low">
+        <label for="l-low"><b>Light</b><small>Best quality</small><em class="est" id="est-low"></em></label>
+      </div>
+      <div class="level">
+        <input type="radio" name="level" id="l-med" value="med" checked>
+        <label for="l-med"><b>Medium</b><small>Recommended</small><em class="est" id="est-med"></em></label>
+      </div>
+      <div class="level">
+        <input type="radio" name="level" id="l-high" value="high">
+        <label for="l-high"><b>Strong</b><small>Smallest file</small><em class="est" id="est-high"></em></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card preview" id="preview">
+    <h2>Size preview</h2>
+    <div class="stats">
+      <div>Current size<b id="pvBefore"></b></div>
+      <div>&rarr;</div>
+      <div>Estimated after<b id="pvAfter"></b></div>
+    </div>
+    <div class="saved" id="pvSaved"></div>
+  </div>
+
+  <button class="btn" id="compressBtn" disabled>Compress PDF</button>
+
+  <div class="progress" id="progress">
+    <div class="bar"><div id="barFill"></div></div>
+    <p id="progressText">Starting...</p>
+  </div>
+  <div class="error" id="error"></div>
+
+  <div class="card result" id="result" style="margin-top:16px">
+    <h2>Done!</h2>
+    <div class="stats">
+      <div>Before<b id="beforeSize"></b></div>
+      <div>&rarr;</div>
+      <div>After<b id="afterSize"></b></div>
+    </div>
+    <div class="saved" id="savedText"></div>
+    <button class="btn" id="downloadBtn">Download compressed PDF</button>
+  </div>
+
+  <p class="note">Note: compression works by converting each page to an optimized image, so text in the compressed PDF can't be selected or searched. Keep your original if you need that. Big files with many pages can take a minute or two.</p>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const MAX_SIZE = 50 * 1024 * 1024; // 50 MB upload limit
+
+// Quality ladder, best to smallest. dpi = render resolution, quality = JPEG quality.
+const STEPS = [
+  { dpi: 150, quality: 0.80 },
+  { dpi: 130, quality: 0.70 },
+  { dpi: 110, quality: 0.60 },
+  { dpi: 96,  quality: 0.55 },
+  { dpi: 85,  quality: 0.50 },
+  { dpi: 72,  quality: 0.45 },
+  { dpi: 60,  quality: 0.40 },
+  { dpi: 50,  quality: 0.35 },
+  { dpi: 40,  quality: 0.30 }
+];
+// Which ladder step each preset button uses
+const PRESETS = { low: 0, med: 2, high: 5 };
+const SAFETY = 0.92; // aim a little under the target so the real result fits
+
+const $ = id => document.getElementById(id);
+const drop = $('drop'), fileInput = $('fileInput');
+let currentFile = null;
+let resultBlob = null;
+
+// Sampled pages + per-step size estimates for the current file
+let samples = [];
+let totalPages = 0;
+let stepEst = [];
+let estToken = 0;
+
+function fmt(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(2) + ' MB';
+}
+
+function showError(msg) { const e = $('error'); e.textContent = msg; e.style.display = msg ? 'block' : 'none'; }
+function selectedKey() { return document.querySelector('input[name="level"]:checked').value; }
+
+// Returns null (no limit), NaN (invalid input), or the target in bytes
+function getTarget() {
+  if (!$('useTarget').checked) return null;
+  const v = parseFloat($('targetVal').value);
+  if (!(v > 0)) return NaN;
+  return Math.round(v * ($('targetUnit').value === 'KB' ? 1024 : 1048576));
+}
+
+// First ladder step whose estimate fits under the target (or the smallest step)
+function pickStep(target) {
+  for (let i = 0; i < STEPS.length; i++) {
+    if (stepEst[i] != null && stepEst[i] <= target * SAFETY) return i;
+  }
+  return STEPS.length - 1;
+}
+
+// Render one page to a JPEG data URL at the given step
+async function renderPage(page, step) {
+  const base = page.getViewport({ scale: 1 });             // size in points
+  const vp = page.getViewport({ scale: step.dpi / 72 });   // render size
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.floor(vp.width);
+  canvas.height = Math.floor(vp.height);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  const img = canvas.toDataURL('image/jpeg', step.quality);
+  canvas.width = canvas.height = 0; // free memory
+  return { img, base };
+}
+
+// Estimate the output size for one ladder step from the sampled pages
+function estimateStep(step) {
+  let bytes = 0;
+  for (const s of samples) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(s.w * step.dpi / 72));
+    c.height = Math.max(1, Math.round(s.h * step.dpi / 72));
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(s.canvas, 0, 0, c.width, c.height);
+    const url = c.toDataURL('image/jpeg', step.quality);
+    bytes += Math.round((url.length - 23) * 0.75); // base64 length to bytes
+    c.width = c.height = 0;
+  }
+  return Math.round(bytes / samples.length * totalPages) + 1500;
+}
+
+function updateLevelLabels() {
+  Object.keys(PRESETS).forEach(k => {
+    const v = stepEst[PRESETS[k]];
+    $('est-' + k).textContent = v == null ? 'Estimating...' : '~' + fmt(v);
+  });
+}
+
+function updatePreview() {
+  if (!currentFile) { $('preview').style.display = 'none'; return; }
+  $('preview').style.display = 'block';
+  $('pvBefore').textContent = fmt(currentFile.size);
+  const s = $('pvSaved');
+  const target = getTarget();
+
+  if (Number.isNaN(target)) {
+    $('pvAfter').textContent = '-';
+    s.textContent = 'Enter the size limit you need.';
+    s.className = 'saved warn';
+    return;
+  }
+  if (!stepEst.length) {
+    $('pvAfter').textContent = 'Estimating...';
+    s.textContent = '';
+    return;
+  }
+
+  if (target === null) {
+    const est = stepEst[PRESETS[selectedKey()]];
+    $('pvAfter').textContent = '~' + fmt(est);
+    const saved = 1 - est / currentFile.size;
+    if (saved > 0.02) {
+      s.textContent = 'About ' + Math.round(saved * 100) + '% smaller';
+      s.className = 'saved';
+    } else {
+      s.textContent = 'This level may not make the file smaller. Try a stronger level.';
+      s.className = 'saved warn';
+    }
+    return;
+  }
+
+  // Size limit mode
+  const i = pickStep(target);
+  const est = stepEst[i];
+  $('pvAfter').textContent = '~' + fmt(est);
+  if (est <= target * SAFETY) {
+    s.textContent = currentFile.size <= target
+      ? 'Your file is already under ' + fmt(target) + '. You can still compress it.'
+      : 'Should fit under ' + fmt(target);
+    s.className = 'saved';
+  } else {
+    s.textContent = 'Even the strongest setting is about ' + fmt(est) + ', so it may not fit under ' + fmt(target) + '. We will make it as small as possible.';
+    s.className = 'saved warn';
+  }
+}
+
+// Render a few sample pages once, then estimate every ladder step quickly
+async function analyze(file) {
+  const token = ++estToken;
+  samples.forEach(s => { s.canvas.width = s.canvas.height = 0; });
+  samples = [];
+  stepEst = [];
+  totalPages = 0;
+  updateLevelLabels();
+  updatePreview();
+  try {
+    const data = new Uint8Array(await file.arrayBuffer());
+    const pdf = await pdfjsLib.getDocument({ data }).promise;
+    const total = pdf.numPages;
+    const n = Math.min(3, total);
+    const pages = n === 1 ? [1] :
+      [...new Set(Array.from({ length: n }, (_, i) => Math.round(1 + i * (total - 1) / (n - 1))))];
+    const found = [];
+    for (const p of pages) {
+      const page = await pdf.getPage(p);
+      const base = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: STEPS[0].dpi / 72 });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(vp.width);
+      canvas.height = Math.floor(vp.height);
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      found.push({ canvas, w: base.width, h: base.height });
+      page.cleanup();
+    }
+    if (token !== estToken) { found.forEach(s => { s.canvas.width = s.canvas.height = 0; }); return; }
+    samples = found;
+    totalPages = total;
+    stepEst = STEPS.map(estimateStep);
+    updateLevelLabels();
+    updatePreview();
+  } catch (err) {
+    if (token !== estToken) return;
+    console.error(err);
+    Object.keys(PRESETS).forEach(k => { $('est-' + k).textContent = ''; });
+    $('pvAfter').textContent = 'Unknown';
+    $('pvSaved').textContent = '';
+  }
+}
+
+function setFile(file) {
+  showError('');
+  $('result').style.display = 'none';
+  if (!file) return;
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    showError('Please choose a PDF file.');
+    return;
+  }
+  if (file.size > MAX_SIZE) {
+    showError('This file is ' + fmt(file.size) + '. The limit is 50 MB, please choose a smaller PDF.');
+    return;
+  }
+  currentFile = file;
+  $('fileName').textContent = file.name;
+  $('fileSize').textContent = fmt(file.size);
+  drop.style.display = 'none';
+  $('fileInfo').style.display = 'flex';
+  $('compressBtn').disabled = false;
+  updatePreview();
+  analyze(file);
+}
+
+// Size limit controls
+function syncTargetUI() {
+  const on = $('useTarget').checked;
+  $('limitBox').style.display = on ? 'block' : 'none';
+  $('levels').classList.toggle('off', on);
+  $('levelCard').querySelector('h2').textContent = on ? 'Compression level (not used with a size limit)' : 'Compression level';
+  updatePreview();
+}
+$('useTarget').addEventListener('change', syncTargetUI);
+$('targetVal').addEventListener('input', updatePreview);
+$('targetUnit').addEventListener('change', updatePreview);
+document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => {
+  $('targetVal').value = c.dataset.v;
+  $('targetUnit').value = c.dataset.u;
+  updatePreview();
+}));
+document.querySelectorAll('input[name="level"]').forEach(r => r.addEventListener('change', updatePreview));
+
+drop.addEventListener('click', () => fileInput.click());
+$('changeBtn').addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { setFile(e.target.files[0]); fileInput.value = ''; });
+['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => setFile(e.dataTransfer.files[0]));
+
+// Compress the whole document with one ladder step, returns a Blob
+async function compressWith(pdf, step, label) {
+  const total = pdf.numPages;
+  const { jsPDF } = window.jspdf;
+  let doc = null;
+  for (let i = 1; i <= total; i++) {
+    $('progressText').textContent = label + 'Compressing page ' + i + ' of ' + total + '...';
+    const page = await pdf.getPage(i);
+    const { img, base } = await renderPage(page, step);
+    const orient = base.width > base.height ? 'l' : 'p';
+    if (!doc) {
+      doc = new jsPDF({ orientation: orient, unit: 'pt', format: [base.width, base.height], compress: true });
+    } else {
+      doc.addPage([base.width, base.height], orient);
+    }
+    doc.addImage(img, 'JPEG', 0, 0, base.width, base.height, undefined, 'FAST');
+    page.cleanup();
+    $('barFill').style.width = Math.round((i / total) * 100) + '%';
+  }
+  return doc.output('blob');
+}
+
+$('compressBtn').addEventListener('click', async () => {
+  if (!currentFile) return;
+  const target = getTarget();
+  if (Number.isNaN(target)) { showError('Please enter the size limit you need.'); return; }
+
+  showError('');
+  $('result').style.display = 'none';
+  $('compressBtn').disabled = true;
+  $('progress').style.display = 'block';
+  $('barFill').style.width = '0%';
+
+  try {
+    const data = new Uint8Array(await currentFile.arrayBuffer());
+    const pdf = await pdfjsLib.getDocument({ data }).promise;
+    let blob;
+
+    if (target === null) {
+      blob = await compressWith(pdf, STEPS[PRESETS[selectedKey()]], '');
+    } else {
+      // Start at the best step expected to fit, then go smaller if the real result is still too big
+      let i = stepEst.length ? pickStep(target) : Math.floor(STEPS.length / 2);
+      let attempt = 1;
+      while (true) {
+        $('barFill').style.width = '0%';
+        blob = await compressWith(pdf, STEPS[i], attempt > 1 ? 'Retrying smaller (attempt ' + attempt + '). ' : '');
+        if (blob.size <= target || i >= STEPS.length - 1 || attempt >= 5) break;
+        i = Math.min(STEPS.length - 1, i + (blob.size / target > 1.5 ? 2 : 1));
+        attempt++;
+      }
+    }
+
+    resultBlob = blob;
+    $('beforeSize').textContent = fmt(currentFile.size);
+    $('afterSize').textContent = fmt(blob.size);
+    const s = $('savedText');
+    const saved = 1 - blob.size / currentFile.size;
+
+    if (target !== null) {
+      if (blob.size <= target) {
+        s.textContent = 'Under your ' + fmt(target) + ' limit';
+        s.className = 'saved';
+      } else {
+        s.textContent = 'This is the smallest we could make it, but it is still over ' + fmt(target) + '. Try splitting the PDF into two parts.';
+        s.className = 'saved warn';
+      }
+      if (blob.size >= currentFile.size && currentFile.size <= target) {
+        s.textContent = 'Your original is already under ' + fmt(target) + '. You can upload it as it is.';
+        s.className = 'saved warn';
+      }
+    } else if (saved > 0) {
+      s.textContent = 'You saved ' + Math.round(saved * 100) + '%';
+      s.className = 'saved';
+    } else {
+      s.textContent = 'This PDF is already small. Try a stronger level, or keep your original.';
+      s.className = 'saved warn';
+    }
+    $('result').style.display = 'block';
+  } catch (err) {
+    console.error(err);
+    showError('Could not compress this file. It may be password-protected or damaged.');
+  } finally {
+    $('progress').style.display = 'none';
+    $('compressBtn').disabled = false;
+  }
+});
+
+$('downloadBtn').addEventListener('click', () => {
+  if (!resultBlob) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(resultBlob);
+  a.download = currentFile.name.replace(/\.pdf$/i, '') + '-compressed.pdf';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+});
+</script>
+</body>
+</html>

@@ -75,4 +75,4 @@ If you change `MAX_SIZE`, also update the "PDF files up to 50 MB" text in the dr
 
 ## Credits
 
-Made by Jony Roy as part of [Tools By JRN](https://toolbyjrn.vercel.app).
+Made by Jony Roy as part of [Tools By JRN](https://toolsbyjrn.vercel.app).

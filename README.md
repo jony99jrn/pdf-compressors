@@ -67,11 +67,6 @@ All settings are at the top of the `<script>` section in `pdf-compressor.html`:
 
 If you change `MAX_SIZE`, also update the "PDF files up to 50 MB" text in the drop zone and the error message in `setFile`.
 
-## Deploy on Vercel
-
-1. Create a new GitHub repository and add `pdf-compressor.html`. Rename it to `index.html` so it opens at the root of the site.
-2. Import the repository in Vercel. No framework or build command is needed.
-3. Deploy, then copy the live URL.
 
 ## Tech
 
